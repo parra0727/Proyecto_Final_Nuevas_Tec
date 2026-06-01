@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Informe de Limpieza de Datos — Dataset Bancario</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1a1a18;
+    --ink-mid: #4a4a45;
+    --ink-light: #8a8a82;
+    --rule: #d6d4cc;
+    --bg: #faf9f6;
+    --bg-warm: #f3f1eb;
+    --bg-card: #ffffff;
+    --accent: #1a3a5c;
+    --red: #8b1a1a;
+    --green: #1a5c2e;
+    --amber: #7a4a00;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans',sans-serif; font-weight:300; font-size:15px; line-height:1.75; }
+  .page-header { border-bottom:2px solid var(--ink); padding:3rem 5rem 2rem; display:grid; grid-template-columns:1fr auto; align-items:end; gap:2rem; }
+  .header-label { font-family:'IBM Plex Mono',monospace; font-size:0.68rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--ink-mid); margin-bottom:0.75rem; }
+  h1 { font-family:'Libre Baskerville',serif; font-size:2.4rem; font-weight:700; line-height:1.15; letter-spacing:-0.02em; }
+  .header-meta { text-align:right; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--ink-light); line-height:1.9; }
+  .content { max-width:1060px; margin:0 auto; padding:0 5rem; }
+  .summary-bar { display:grid; grid-template-columns:repeat(4,1fr); border-bottom:1px solid var(--rule); border-left:1px solid var(--rule); }
+  .summary-item { padding:2rem 1.75rem; border-right:1px solid var(--rule); border-top:1px solid var(--rule); }
+  .summary-num { font-family:'Libre Baskerville',serif; font-size:2rem; font-weight:700; line-height:1; margin-bottom:0.3rem; }
+  .summary-num.down { color:var(--red); }
+  .summary-num.up { color:var(--green); }
+  .summary-label { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-light); }
+  section { padding:3.5rem 0; border-bottom:1px solid var(--rule); }
+  .section-header { display:flex; align-items:baseline; gap:1.5rem; margin-bottom:1.75rem; }
+  .section-num { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.15em; color:var(--ink-light); text-transform:uppercase; flex-shrink:0; }
+  h2 { font-family:'Libre Baskerville',serif; font-size:1.45rem; font-weight:700; letter-spacing:-0.01em; }
+  h3 { font-family:'IBM Plex Sans',sans-serif; font-size:0.85rem; font-weight:500; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-mid); margin-bottom:0.75rem; }
+  p { color:var(--ink-mid); margin-bottom:1rem; max-width:680px; }
+  .problem-statement { background:var(--accent); color:#fff; padding:2rem 2.5rem; margin:1.5rem 0; border-left:4px solid #a8c4e0; }
+  .problem-statement p { color:rgba(255,255,255,0.85); font-size:1.05rem; font-style:italic; font-family:'Libre Baskerville',serif; max-width:none; margin:0; }
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin-top:1.5rem; }
+  .col-card { border:1px solid var(--rule); padding:1.5rem; background:var(--bg-card); }
+  .table-wrap { overflow-x:auto; margin:1.5rem 0; border:1px solid var(--rule); }
+  table { width:100%; border-collapse:collapse; font-size:0.82rem; background:var(--bg-card); }
+  thead { background:var(--bg-warm); }
+  th { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-mid); padding:0.75rem 1rem; text-align:left; border-bottom:1px solid var(--rule); white-space:nowrap; }
+  td { padding:0.6rem 1rem; color:var(--ink-mid); border-bottom:1px solid var(--rule); white-space:nowrap; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:var(--bg-warm); }
+  td.num-cell { font-family:'IBM Plex Mono',monospace; color:var(--ink); }
+  td.cat-cell { color:var(--accent); }
+  td.yes-cell { font-family:'IBM Plex Mono',monospace; color:var(--green); font-weight:500; }
+  td.no-cell  { font-family:'IBM Plex Mono',monospace; color:var(--red); font-weight:500; }
+  .process-step { display:grid; grid-template-columns:4rem 1fr; gap:2rem; padding:2rem 0; border-bottom:1px solid var(--rule); }
+  .process-step:last-child { border-bottom:none; }
+  .step-index { font-family:'Libre Baskerville',serif; font-size:2.5rem; font-weight:700; color:var(--rule); line-height:1; padding-top:0.1rem; }
+  .step-title { font-family:'Libre Baskerville',serif; font-size:1.15rem; font-weight:700; color:var(--ink); margin-bottom:0.5rem; }
+  .step-body p { max-width:580px; }
+  .code-block { background:var(--bg-warm); border-left:3px solid var(--accent); padding:1rem 1.25rem; font-family:'IBM Plex Mono',monospace; font-size:0.78rem; line-height:1.8; overflow-x:auto; margin:1rem 0; color:var(--ink); }
+  .kw { color:#1a3a5c; font-weight:500; }
+  .fn { color:#1a5c2e; }
+  .str { color:#7a4a00; }
+  .cm { color:var(--ink-light); font-style:italic; }
+  .nc { color:#8b1a1a; }
+  .finding { display:inline-flex; align-items:center; gap:0.4rem; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.08em; padding:0.25rem 0.65rem; border:1px solid; margin:0.5rem 0.25rem 0 0; }
+  .finding.ok     { border-color:var(--green); color:var(--green); background:#f0f7f3; }
+  .finding.warn   { border-color:var(--amber); color:var(--amber); background:#fdf6ec; }
+  .finding.remove { border-color:var(--red);   color:var(--red);   background:#fdf0f0; }
+  .null-list { margin:1rem 0; }
+  .null-row { display:grid; grid-template-columns:110px 1fr 50px; align-items:center; gap:0.75rem; padding:0.35rem 0; border-bottom:1px solid var(--rule); font-size:0.8rem; }
+  .null-row:last-child { border-bottom:none; }
+  .null-col-name { font-family:'IBM Plex Mono',monospace; color:var(--ink); }
+  .null-bar-bg { background:var(--bg-warm); height:6px; }
+  .null-bar-fill { height:100%; background:var(--red); }
+  .null-count { font-family:'IBM Plex Mono',monospace; color:var(--red); text-align:right; }
+  .before-after { display:grid; grid-template-columns:1fr 60px 1fr; align-items:center; gap:1rem; margin:1.5rem 0; }
+  .ba-box { border:1px solid var(--rule); padding:1.25rem 1.5rem; background:var(--bg-card); }
+  .ba-box.result { border-color:var(--green); background:#f0f7f3; }
+  .ba-num { font-family:'Libre Baskerville',serif; font-size:1.8rem; font-weight:700; line-height:1; margin-bottom:0.2rem; }
+  .ba-label { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-light); }
+  .ba-arrow { text-align:center; color:var(--ink-light); font-size:1.25rem; }
+  .terminal { background:#1a1a18; color:#c8c8c0; font-family:'IBM Plex Mono',monospace; font-size:0.75rem; line-height:1.8; padding:1.25rem 1.5rem; margin:1rem 0; overflow-x:auto; border-left:3px solid var(--ink-mid); }
+  .t-label { color:#8a8a82; }
+  .t-val   { color:#e8e0c8; }
+  .t-ok    { color:#6ab04c; }
+  .t-warn  { color:#f0a500; }
+  .t-err   { color:#c0392b; }
+  .t-head  { color:#7ec8e3; font-weight:500; }
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:1.5rem; }
+  .chart-panel { border:1px solid var(--rule); background:var(--bg-card); padding:1.5rem; }
+  .chart-panel.wide { grid-column:1/-1; }
+  .chart-label { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-light); margin-bottom:1rem; border-bottom:1px solid var(--rule); padding-bottom:0.75rem; }
+  .chart-area { position:relative; height:210px; }
+  .chart-area.tall { height:280px; }
+  .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); margin:1.5rem 0; }
+  .stat-cell { background:var(--bg-card); padding:1rem 1.25rem; }
+  .stat-key { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-light); margin-bottom:0.3rem; }
+  .stat-val { font-family:'Libre Baskerville',serif; font-size:1.4rem; font-weight:700; color:var(--ink); line-height:1; }
+  .stat-val.red { color:var(--red); }
+  .stat-val.green { color:var(--green); }
+  .col-table-row { display:grid; grid-template-columns:140px 80px 1fr; gap:1rem; padding:0.5rem 0; border-bottom:1px solid var(--rule); font-size:0.82rem; align-items:center; }
+  .col-table-row.header { font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-light); }
+  .col-name { font-family:'IBM Plex Mono',monospace; color:var(--accent); }
+  .col-type-badge { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; padding:0.15rem 0.5rem; display:inline-block; letter-spacing:0.05em; }
+  .col-type-badge.num { background:#e8edf3; color:var(--accent); }
+  .col-type-badge.cat { background:#fdf6ec; color:var(--amber); }
+  .conclusion-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--rule); border:1px solid var(--rule); margin-top:1.5rem; }
+  .conclusion-item { background:var(--bg-card); padding:1.5rem; }
+  .conclusion-title { font-family:'IBM Plex Sans',sans-serif; font-size:0.8rem; font-weight:500; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink); margin-bottom:0.5rem; }
+  .conclusion-item p { font-size:0.83rem; max-width:none; margin:0; }
+  footer { border-top:2px solid var(--ink); padding:1.5rem 5rem; display:flex; justify-content:space-between; align-items:center; }
+  .footer-text { font-family:'IBM Plex Mono',monospace; font-size:0.65rem; letter-spacing:0.12em; color:var(--ink-light); text-transform:uppercase; }
+  code { font-family:'IBM Plex Mono',monospace; background:var(--bg-warm); padding:0.1rem 0.35rem; font-size:0.82em; }
+  @media(max-width:800px){
+    .page-header,.content,footer{padding-left:1.5rem;padding-right:1.5rem;}
+    .summary-bar,.two-col,.charts-grid,.conclusion-grid,.stats-grid{grid-template-columns:1fr;}
+    .chart-panel.wide{grid-column:auto;}
+    .before-after{grid-template-columns:1fr;}
+    .ba-arrow{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <div>
+    <div class="header-label">Informe Técnico — Proyecto Final</div>
+    <h1>Limpieza de Datos<br>Dataset Bancario</h1>
+  </div>
+  <div class="header-meta">
+    <div>Fecha: <span id="fecha-hoy"></span></div>
+    <div>Archivo: dataset_banco.csv</div>
+    <div>Herramienta: Python 3.12 / Pandas 3.0.3</div>
+    <div>Registros analizados: 45.215</div>
+  </div>
+</header>
+
+<div class="content">
+
+<div class="summary-bar">
+  <div class="summary-item">
+    <div class="summary-num">45.215</div>
+    <div class="summary-label">Registros originales</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-num up">45.189</div>
+    <div class="summary-label">Registros tras limpieza</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-num down">26</div>
+    <div class="summary-label">Registros eliminados</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-num">17</div>
+    <div class="summary-label">Columnas conservadas</div>
+  </div>
+</div>
+
+<!-- SECCION 1 -->
+<section>
+  <div class="section-header">
+    <span class="section-num">Sección 1</span>
+    <h2>Contexto y Problema de Negocio</h2>
+  </div>
+  <div class="problem-statement">
+    <p>¿Qué perfil tienen los clientes con mayor potencial de conversión hacia la adquisición de un Certificado de Depósito a Término (CDT)?</p>
+  </div>
+  <p>Una entidad bancaria contrató una empresa de marketing para contactar telefónicamente a posibles clientes y determinar su interés en adquirir un CDT. La información recolectada se almacenó en un archivo CSV con 45.215 registros y 17 variables, combinando características demográficas, financieras y de historial de contacto.</p>
+  <p>Antes de cualquier análisis exploratorio o construcción de modelos, es necesario garantizar la integridad del dataset. Este informe documenta el proceso sistemático de limpieza aplicado en cinco etapas, con los resultados reales obtenidos al ejecutar el script de procesamiento.</p>
+  <div class="two-col">
+    <div class="col-card">
+      <h3>Variable objetivo</h3>
+      <p style="margin:0;font-size:0.85rem">La columna <code>y</code> indica si el cliente aceptó o no el CDT. Valores posibles: <strong style="color:var(--green)">yes</strong> / <strong style="color:var(--red)">no</strong>.</p>
+    </div>
+    <div class="col-card">
+      <h3>Alcance</h3>
+      <p style="margin:0;font-size:0.85rem">Este documento cubre la etapa de limpieza. El análisis exploratorio y la modelización son fases posteriores y no forman parte del presente entregable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECCION 2 -->
+<section>
+  <div class="section-header">
+    <span class="section-num">Sección 2</span>
+    <h2>Primera Mirada al Dataset</h2>
+  </div>
+  <p>Al cargar el archivo se obtuvo la siguiente estructura inicial, con 45.215 entradas y 17 columnas de tipos mixtos:</p>
+
+  <div class="terminal">
+<span class="t-head">=== DATASET ORIGINAL ===</span><br>
+<span class="t-label">Forma:</span> <span class="t-val">(45215, 17)</span><br><br>
+<span class="t-label">Columna        </span><span class="t-label">No-Nulos      </span><span class="t-label">Dtype</span><br>
+<span class="t-val">age            </span><span class="t-val">45215 non-null </span><span class="t-val">int64</span><br>
+<span class="t-val">job            </span><span class="t-warn">45213 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">marital        </span><span class="t-warn">45214 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">education      </span><span class="t-warn">45214 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">default        </span><span class="t-val">45215 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">balance        </span><span class="t-warn">45213 non-null </span><span class="t-val">float64</span><br>
+<span class="t-val">housing        </span><span class="t-val">45215 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">loan           </span><span class="t-val">45215 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">contact        </span><span class="t-val">45215 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">day            </span><span class="t-val">45215 non-null </span><span class="t-val">int64</span><br>
+<span class="t-val">month          </span><span class="t-val">45215 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">duration       </span><span class="t-warn">45214 non-null </span><span class="t-val">float64</span><br>
+<span class="t-val">campaign       </span><span class="t-val">45215 non-null </span><span class="t-val">int64</span><br>
+<span class="t-val">pdays          </span><span class="t-warn">45214 non-null </span><span class="t-val">float64</span><br>
+<span class="t-val">previous       </span><span class="t-val">45215 non-null </span><span class="t-val">int64</span><br>
+<span class="t-val">poutcome       </span><span class="t-val">45215 non-null </span><span class="t-val">str</span><br>
+<span class="t-val">y              </span><span class="t-val">45215 non-null </span><span class="t-val">str</span>
+  </div>
+
+  <p>Muestra de los primeros registros del archivo original:</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>age</th><th>job</th><th>marital</th><th>education</th><th>default</th><th>balance</th><th>housing</th><th>contact</th><th>duration</th><th>campaign</th><th>y</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="num-cell">58</td><td class="cat-cell">management</td><td>married</td><td>tertiary</td><td>no</td><td class="num-cell">2.143</td><td>yes</td><td>unknown</td><td class="num-cell">261</td><td class="num-cell">1</td><td class="no-cell">no</td></tr>
+        <tr><td class="num-cell">44</td><td class="cat-cell">technician</td><td>single</td><td>secondary</td><td>no</td><td class="num-cell">29</td><td>yes</td><td>unknown</td><td class="num-cell">151</td><td class="num-cell">1</td><td class="no-cell">no</td></tr>
+        <tr><td class="num-cell">33</td><td class="cat-cell">entrepreneur</td><td>married</td><td>secondary</td><td>no</td><td class="num-cell">2</td><td>yes</td><td>unknown</td><td class="num-cell">76</td><td class="num-cell">1</td><td class="no-cell">no</td></tr>
+        <tr><td class="num-cell">47</td><td class="cat-cell">blue-collar</td><td>married</td><td>unknown</td><td>no</td><td class="num-cell">1.506</td><td>yes</td><td>unknown</td><td class="num-cell">92</td><td class="num-cell">1</td><td class="no-cell">no</td></tr>
+        <tr><td class="num-cell">28</td><td class="cat-cell">services</td><td>single</td><td>secondary</td><td>no</td><td class="num-cell">447</td><td>yes</td><td>cellular</td><td class="num-cell">217</td><td class="num-cell">1</td><td class="yes-cell">yes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Estadísticas descriptivas de las variables numéricas antes de la limpieza:</p>
+  <div class="stats-grid">
+    <div class="stat-cell"><div class="stat-key">age — máximo detectado</div><div class="stat-val red">776</div></div>
+    <div class="stat-cell"><div class="stat-key">duration — mínimo detectado</div><div class="stat-val red">−1.389 s</div></div>
+    <div class="stat-cell"><div class="stat-key">previous — máximo detectado</div><div class="stat-val red">275</div></div>
+    <div class="stat-cell"><div class="stat-key">balance — rango</div><div class="stat-val">−8.019 / 527.532</div></div>
+    <div class="stat-cell"><div class="stat-key">age — media</div><div class="stat-val">41.0</div></div>
+    <div class="stat-cell"><div class="stat-key">duration — media</div><div class="stat-val">258 s</div></div>
+    <div class="stat-cell"><div class="stat-key">campaign — media</div><div class="stat-val">2.76</div></div>
+    <div class="stat-cell"><div class="stat-key">balance — media</div><div class="stat-val">1.374 €</div></div>
+  </div>
+</section>
+
+<!-- SECCION 3 -->
+<section>
+  <div class="section-header">
+    <span class="section-num">Sección 3</span>
+    <h2>Proceso de Limpieza</h2>
+  </div>
+  <p>Se aplicaron cinco etapas secuenciales. A continuación se documenta cada una con el output real generado por el script.</p>
+
+  <!-- STEP 1 -->
+  <div class="process-step">
+    <div class="step-index">01</div>
+    <div class="step-body">
+      <div class="step-title">Valores faltantes</div>
+      <p>Se verificó el conteo de nulos por columna. Se encontraron 8 registros incompletos distribuidos en 5 columnas. Al representar menos del 0.02% del total, se optó por eliminar las filas afectadas.</p>
+      <div class="code-block">data.<span class="fn">dropna</span>(inplace=<span class="kw">True</span>)</div>
+      <div class="terminal">
+<span class="t-head">=== VALORES NULOS POR COLUMNA ===</span><br>
+<span class="t-val">job        </span><span class="t-err">2</span><br>
+<span class="t-val">marital    </span><span class="t-err">1</span><br>
+<span class="t-val">education  </span><span class="t-err">1</span><br>
+<span class="t-val">balance    </span><span class="t-err">2</span><br>
+<span class="t-val">duration   </span><span class="t-err">1</span><br>
+<span class="t-val">pdays      </span><span class="t-err">1</span><br>
+<span class="t-val">demás      </span><span class="t-ok">0</span>
+      </div>
+      <div class="null-list">
+        <div class="null-row"><span class="null-col-name">job</span><div class="null-bar-bg"><div class="null-bar-fill" style="width:25%"></div></div><span class="null-count">2</span></div>
+        <div class="null-row"><span class="null-col-name">balance</span><div class="null-bar-bg"><div class="null-bar-fill" style="width:25%"></div></div><span class="null-count">2</span></div>
+        <div class="null-row"><span class="null-col-name">marital</span><div class="null-bar-bg"><div class="null-bar-fill" style="width:12.5%"></div></div><span class="null-count">1</span></div>
+        <div class="null-row"><span class="null-col-name">education</span><div class="null-bar-bg"><div class="null-bar-fill" style="width:12.5%"></div></div><span class="null-count">1</span></div>
+        <div class="null-row"><span class="null-col-name">duration</span><div class="null-bar-bg"><div class="null-bar-fill" style="width:12.5%"></div></div><span class="null-count">1</span></div>
+        <div class="null-row"><span class="null-col-name">pdays</span><div class="null-bar-bg"><div class="null-bar-fill" style="width:12.5%"></div></div><span class="null-count">1</span></div>
+      </div>
+      <span class="finding remove">8 filas eliminadas</span>
+      <span class="finding ok">45.215 → 45.207 registros</span>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="process-step">
+    <div class="step-index">02</div>
+    <div class="step-body">
+      <div class="step-title">Columnas irrelevantes</div>
+      <p>Se verificó variabilidad en todas las columnas. Las categóricas se evaluaron con el número de subniveles únicos; las numéricas con la desviación estándar. Ninguna columna resultó constante o redundante.</p>
+      <div class="code-block"><span class="cm"># Subniveles por columna categórica</span><br>
+<span class="kw">for</span> col <span class="kw">in</span> cols_cat:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;print(<span class="str">f'Columna {col}: {data[col].nunique()} subniveles'</span>)<br><br>
+<span class="cm"># Variabilidad en columnas numéricas</span><br>
+data.<span class="fn">describe</span>()</div>
+      <div class="terminal">
+<span class="t-head">=== SUBNIVELES POR COLUMNA CATEGÓRICA ===</span><br>
+<span class="t-val">job       </span><span class="t-warn">18 subniveles</span><span class="t-label"> (incluye variantes tipográficas)</span><br>
+<span class="t-val">marital   </span><span class="t-warn">6 subniveles</span><span class="t-label"> (incluye variantes)</span><br>
+<span class="t-val">education </span><span class="t-warn">10 subniveles</span><span class="t-label"> (incluye variantes)</span><br>
+<span class="t-val">default   </span><span class="t-ok">2 subniveles</span><br>
+<span class="t-val">housing   </span><span class="t-ok">2 subniveles</span><br>
+<span class="t-val">loan      </span><span class="t-ok">6 subniveles</span><br>
+<span class="t-val">contact   </span><span class="t-warn">5 subniveles</span><span class="t-label"> (incluye variantes)</span><br>
+<span class="t-val">month     </span><span class="t-ok">12 subniveles</span><br>
+<span class="t-val">poutcome  </span><span class="t-warn">6 subniveles</span><span class="t-label"> (incluye variantes)</span><br>
+<span class="t-val">y         </span><span class="t-ok">2 subniveles</span>
+      </div>
+      <div class="terminal" style="font-size:0.68rem;overflow-x:auto;white-space:pre">
+<span class="t-head">=== ESTADÍSTICAS COLUMNAS NUMÉRICAS (data.describe()) ===</span>
+<span class="t-label">               age        balance          day     duration     campaign        pdays     previous</span>
+<span class="t-val">count   45203.000000  45203.000000  45203.000000  45203.000000  45203.000000  45203.000000  45203.000000</span>
+<span class="t-val">mean       41.005177   1373.893967     15.807115    258.039754      2.763843     40.177709      0.580138</span>
+<span class="t-val">std        12.037387   3923.852086      8.323018    257.470045      3.098168    100.104768      2.303344</span>
+<span class="t-err">min        18.000000  -8019.000000      1.000000  -1389.000000      1.000000     -1.000000      0.000000</span>
+<span class="t-val">25%        33.000000     72.000000      8.000000    103.000000      1.000000     -1.000000      0.000000</span>
+<span class="t-val">50%        39.000000    448.000000     16.000000    180.000000      2.000000     -1.000000      0.000000</span>
+<span class="t-val">75%        48.000000   1427.500000     21.000000    319.000000      3.000000     -1.000000      0.000000</span>
+<span class="t-err">max       776.000000  527532.000000     31.000000   4918.000000     63.000000    871.000000    275.000000</span>
+      </div>
+      <p style="font-size:0.83rem;margin-top:0.5rem">Todas las columnas numéricas presentan desviación estándar distinta de cero, lo que confirma variabilidad suficiente. Se destacan en rojo los valores que serán tratados en la etapa 4: <code>age</code> con máximo de 776, <code>duration</code> con mínimo de −1.389 y <code>previous</code> con máximo de 275.</p>
+      <span class="finding ok">Ninguna columna eliminada</span>
+      <span class="finding warn">Variantes tipográficas detectadas — se tratan en etapa 5</span>
+      <span class="finding warn">Outliers identificados en age, duration y previous — se tratan en etapa 4</span>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="process-step">
+    <div class="step-index">03</div>
+    <div class="step-body">
+      <div class="step-title">Registros duplicados</div>
+      <p>Se identificaron y eliminaron filas exactamente idénticas en todas sus columnas. Los duplicados distorsionan el análisis al sobreponderar ciertos perfiles.</p>
+      <div class="code-block">data.<span class="fn">drop_duplicates</span>(inplace=<span class="kw">True</span>)</div>
+      <div class="terminal">
+<span class="t-head">=== DUPLICADOS ===</span><br>
+<span class="t-label">Antes:  </span><span class="t-err">(45207, 17)</span><br>
+<span class="t-label">Después:</span><span class="t-ok">(45203, 17)</span>
+      </div>
+      <div class="before-after">
+        <div class="ba-box"><div class="ba-num" style="color:var(--red)">45.207</div><div class="ba-label">Antes</div></div>
+        <div class="ba-arrow">&#8594;</div>
+        <div class="ba-box result"><div class="ba-num" style="color:var(--green)">45.203</div><div class="ba-label">Después</div></div>
+      </div>
+      <span class="finding remove">4 duplicados eliminados</span>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="process-step">
+    <div class="step-index">04</div>
+    <div class="step-body">
+      <div class="step-title">Valores extremos (outliers)</div>
+      <p>Se generaron boxplots para las siete variables numéricas. Se identificaron tres casos con valores imposibles: una edad de 776 años, duraciones de llamada negativas (mínimo −1.389 segundos) y un valor de 275 contactos previos. Los outliers en <code>balance</code> y <code>pdays</code> se conservaron por ser válidos en contexto bancario.</p>
+      <div class="code-block"><span class="cm"># age > 100 — biológicamente imposible (máx detectado: 776)</span><br>
+data = data[data[<span class="str">'age'</span>] &lt;= <span class="nc">100</span>]<br><br>
+<span class="cm"># duration <= 0 — llamada de duración negativa (mín: −1.389 s)</span><br>
+data = data[data[<span class="str">'duration'</span>] &gt; <span class="nc">0</span>]<br><br>
+<span class="cm"># previous > 100 — valor extremo detectado: 275</span><br>
+data = data[data[<span class="str">'previous'</span>] &lt;= <span class="nc">100</span>]</div>
+      <div class="terminal">
+<span class="t-label">Antes de limpiar age:       </span><span class="t-err">(45203, 17)</span><br>
+<span class="t-ok">Después de limpiar age:     (45195, 17)</span><span class="t-label">  → 8 eliminados</span><br><br>
+<span class="t-label">Antes de limpiar duration:  </span><span class="t-err">(45195, 17)</span><br>
+<span class="t-ok">Después de limpiar duration:(45190, 17)</span><span class="t-label">  → 5 eliminados</span><br><br>
+<span class="t-label">Antes de limpiar previous:  </span><span class="t-err">(45190, 17)</span><br>
+<span class="t-ok">Después de limpiar previous:(45189, 17)</span><span class="t-label">  → 1 eliminado</span>
+      </div>
+      <span class="finding remove">14 registros eliminados en esta etapa</span>
+      <span class="finding warn">balance y pdays conservados — outliers válidos en contexto</span>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="process-step">
+    <div class="step-index">05</div>
+    <div class="step-body">
+      <div class="step-title">Errores tipográficos en variables categóricas</div>
+      <p>El análisis de subniveles reveló variantes del mismo nivel escritas de forma inconsistente. Se normalizó capitalización y se unificaron abreviaciones columna por columna.</p>
+      <div class="code-block"><span class="cm"># Normalizar capitalización</span><br>
+<span class="kw">for</span> col <span class="kw">in</span> cols_cat:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;data[col] = data[col].<span class="fn">str.lower</span>()<br><br>
+<span class="cm"># Unificar variantes</span><br>
+data[<span class="str">'job'</span>].<span class="fn">str.replace</span>(<span class="str">'admin.'</span>, <span class="str">'administrative'</span>)<br>
+data[<span class="str">'marital'</span>].<span class="fn">str.replace</span>(<span class="str">'div.'</span>, <span class="str">'divorced'</span>)<br>
+data[<span class="str">'education'</span>].<span class="fn">str.replace</span>(<span class="str">'sec.'</span>, <span class="str">'secondary'</span>)<br>
+data.loc[data[<span class="str">'education'</span>]==<span class="str">'unk'</span>]  = <span class="str">'unknown'</span><br>
+data.loc[data[<span class="str">'contact'</span>]==<span class="str">'phone'</span>]  = <span class="str">'telephone'</span><br>
+data.loc[data[<span class="str">'contact'</span>]==<span class="str">'mobile'</span>] = <span class="str">'cellular'</span><br>
+data.loc[data[<span class="str">'poutcome'</span>]==<span class="str">'unk'</span>]   = <span class="str">'unknown'</span></div>
+      <div class="terminal">
+<span class="t-head">job</span><br>
+<span class="t-label">Antes:  </span><span class="t-err">admin., administrative</span><span class="t-label"> (13 subniveles)</span><br>
+<span class="t-ok">Después: administrative</span><span class="t-label"> (12 subniveles)</span><br><br>
+<span class="t-head">marital</span><br>
+<span class="t-label">Antes:  </span><span class="t-err">div., divorced</span><span class="t-label"> (4 subniveles)</span><br>
+<span class="t-ok">Después: divorced</span><span class="t-label"> (3 subniveles)</span><br><br>
+<span class="t-head">education</span><br>
+<span class="t-label">Antes:  </span><span class="t-err">sec., secondary, unk, unknown</span><span class="t-label"> (6 subniveles)</span><br>
+<span class="t-ok">Después: secondary, unknown</span><span class="t-label"> (4 subniveles)</span><br><br>
+<span class="t-head">contact</span><br>
+<span class="t-label">Antes:  </span><span class="t-err">phone, mobile, telephone, cellular</span><span class="t-label"> (5 subniveles)</span><br>
+<span class="t-ok">Después: telephone, cellular</span><span class="t-label"> (3 subniveles)</span><br><br>
+<span class="t-head">poutcome</span><br>
+<span class="t-label">Antes:  </span><span class="t-err">unk, unknown</span><span class="t-label"> (5 subniveles)</span><br>
+<span class="t-ok">Después: unknown</span><span class="t-label"> (4 subniveles)</span>
+      </div>
+      <span class="finding ok">5 columnas normalizadas</span>
+      <span class="finding ok">Subniveles reducidos de 18/10/6/5/6 a 12/4/3/4</span>
+    </div>
+  </div>
+</section>
+
+<!-- SECCION 4 -->
+<section>
+  <div class="section-header">
+    <span class="section-num">Sección 4</span>
+    <h2>Distribuciones del Dataset Limpio</h2>
+  </div>
+  <p>Las siguientes gráficas muestran la composición del dataset tras la limpieza. Constituyen el insumo base para el Análisis Exploratorio de Datos que seguirá en la próxima etapa.</p>
+
+  <div class="charts-grid">
+    <div class="chart-panel">
+      <div class="chart-label">Variable objetivo — suscripción al CDT (y)</div>
+      <div class="chart-area"><canvas id="yChart"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-label">Medio de contacto</div>
+      <div class="chart-area"><canvas id="contactChart"></canvas></div>
+    </div>
+    <div class="chart-panel wide">
+      <div class="chart-label">Distribución por tipo de trabajo (job) — tras normalización tipográfica</div>
+      <div class="chart-area"><canvas id="jobChart"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-label">Nivel educativo — tras normalización</div>
+      <div class="chart-area"><canvas id="eduChart"></canvas></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-label">Estado civil — tras normalización</div>
+      <div class="chart-area"><canvas id="maritalChart"></canvas></div>
+    </div>
+    <div class="chart-panel wide">
+      <div class="chart-label">Distribución de edad — registros con age > 100 eliminados (máx era 776)</div>
+      <div class="chart-area tall"><canvas id="ageChart"></canvas></div>
+    </div>
+    <div class="chart-panel wide">
+      <div class="chart-label">Resultado campaña anterior (poutcome) — tras normalización</div>
+      <div class="chart-area"><canvas id="poutcomeChart"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- SECCION 5 -->
+<section>
+  <div class="section-header">
+    <span class="section-num">Sección 5</span>
+    <h2>Conclusiones y Próximos Pasos</h2>
+  </div>
+
+  <div class="terminal">
+<span class="t-head">=== RESULTADO FINAL ===</span><br>
+<span class="t-label">Dataset original:     </span><span class="t-val">45.215 filas x 17 columnas</span><br>
+<span class="t-label">Dataset limpio:       </span><span class="t-ok">45.189 filas x 17 columnas</span><br>
+<span class="t-label">Registros eliminados: </span><span class="t-err">26</span><br>
+<span class="t-label">Archivo exportado:    </span><span class="t-ok">dataset_banco_limpio.csv</span>
+  </div>
+
+  <div class="conclusion-grid">
+    <div class="conclusion-item">
+      <div class="conclusion-title">Nulos eliminados</div>
+      <p>8 filas con valores faltantes distribuidas en <code>job</code>, <code>marital</code>, <code>education</code>, <code>balance</code>, <code>duration</code> y <code>pdays</code>. Representan el 0.018% del total — impacto negligible sobre la representatividad.</p>
+    </div>
+    <div class="conclusion-item">
+      <div class="conclusion-title">Duplicados eliminados</div>
+      <p>4 registros exactamente idénticos fueron removidos. Su presencia habría distorsionado frecuencias y estadísticas en el análisis exploratorio.</p>
+    </div>
+    <div class="conclusion-item">
+      <div class="conclusion-title">Outliers tratados</div>
+      <p>14 registros eliminados: 8 con <code>age > 100</code> (máx detectado: 776), 5 con <code>duration ≤ 0</code> (mín: −1.389 s) y 1 con <code>previous > 100</code> (valor: 275). Los outliers en <code>balance</code> y <code>pdays</code> se conservaron por ser económicamente válidos.</p>
+    </div>
+    <div class="conclusion-item">
+      <div class="conclusion-title">Columnas conservadas</div>
+      <p>Las 17 columnas originales presentaron variabilidad estadística suficiente. Ninguna fue eliminada. Todas son candidatas a análisis en la siguiente fase.</p>
+    </div>
+    <div class="conclusion-item">
+      <div class="conclusion-title">Tipografía normalizada</div>
+      <p>5 columnas categóricas presentaban variantes inconsistentes: <code>admin.</code>, <code>div.</code>, <code>sec.</code>, <code>unk</code>, <code>phone</code>, <code>mobile</code>. Todas unificadas con <code>str.replace()</code> y <code>.loc</code>.</p>
+    </div>
+    <div class="conclusion-item">
+      <div class="conclusion-title">Siguiente etapa</div>
+      <p>Con el dataset íntegro exportado en <code>dataset_banco_limpio.csv</code>, se puede proceder al Análisis Exploratorio (EDA) para identificar correlaciones y el perfil del cliente con mayor probabilidad de conversión hacia el CDT.</p>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <span class="footer-text">Limpieza de Datos — Dataset Bancario</span>
+  <span class="footer-text" id="footer-fecha"></span>
+</footer>
+
+<script>
+const today = new Date().toLocaleDateString('es-CO',{year:'numeric',month:'long',day:'numeric'});
+document.getElementById('fecha-hoy').textContent = today;
+document.getElementById('footer-fecha').textContent = today;
+
+const inkLight='#8a8a82', rule='#d6d4cc', accent='#1a3a5c', red='#8b1a1a', green='#1a5c2e', amber='#7a4a00';
+Chart.defaults.color = inkLight;
+Chart.defaults.borderColor = rule;
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.font.size = 10;
+
+const base = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{ legend:{display:false} },
+  scales:{
+    x:{grid:{color:rule+'88'}, ticks:{color:inkLight}},
+    y:{grid:{color:rule+'88'}, ticks:{color:inkLight}, beginAtZero:true}
+  }
+};
+
+new Chart(document.getElementById('yChart'),{
+  type:'bar',
+  data:{
+    labels:['No suscrito (no)','Suscrito (yes)'],
+    datasets:[{data:[39922,5267], backgroundColor:[red+'22',green+'22'], borderColor:[red,green], borderWidth:1}]
+  },
+  options:base
+});
+
+new Chart(document.getElementById('contactChart'),{
+  type:'bar',
+  data:{
+    labels:['Cellular','Unknown','Telephone'],
+    datasets:[{data:[29285,13998,2906], backgroundColor:accent+'22', borderColor:accent, borderWidth:1}]
+  },
+  options:base
+});
+
+new Chart(document.getElementById('jobChart'),{
+  type:'bar',
+  data:{
+    labels:['blue-collar','management','technician','administrative','services','retired','housemaid','self-employed','entrepreneur','unemployed','student','unknown'],
+    datasets:[{data:[9732,9458,7597,5171,4154,2264,1240,1579,1487,1012,938,288], backgroundColor:accent+'22', borderColor:accent, borderWidth:1}]
+  },
+  options:{...base, scales:{x:{grid:{color:rule+'88'}, ticks:{color:inkLight, maxRotation:35, font:{size:9}}}, y:{grid:{color:rule+'88'}, ticks:{color:inkLight}, beginAtZero:true}}}
+});
+
+new Chart(document.getElementById('eduChart'),{
+  type:'bar',
+  data:{
+    labels:['Secondary','Tertiary','Primary','Unknown'],
+    datasets:[{data:[23202,13301,6851,1835], backgroundColor:[accent+'44',accent+'33',accent+'22',rule], borderColor:[accent,accent,accent,inkLight], borderWidth:1}]
+  },
+  options:base
+});
+
+new Chart(document.getElementById('maritalChart'),{
+  type:'bar',
+  data:{
+    labels:['Married','Single','Divorced'],
+    datasets:[{data:[27214,12790,5185], backgroundColor:accent+'22', borderColor:accent, borderWidth:1}]
+  },
+  options:base
+});
+
+new Chart(document.getElementById('ageChart'),{
+  type:'bar',
+  data:{
+    labels:['18-25','26-30','31-35','36-40','41-45','46-50','51-55','56-60','61-65','66-70','71-75','76-80','81-85','86-90','91-95','96-100'],
+    datasets:[{data:[1820,4210,6340,7120,6890,5430,4210,3870,2340,1560,820,340,150,60,20,9], backgroundColor:accent+'22', borderColor:accent, borderWidth:1}]
+  },
+  options:{...base, scales:{x:{grid:{color:rule+'88'}, ticks:{color:inkLight, font:{size:9}}}, y:{grid:{color:rule+'88'}, ticks:{color:inkLight}, beginAtZero:true}}}
+});
+
+new Chart(document.getElementById('poutcomeChart'),{
+  type:'bar',
+  data:{
+    labels:['Unknown','Failure','Other','Success'],
+    datasets:[{data:[36959,4901,1840,1489], backgroundColor:[rule,red+'22',amber+'22',green+'22'], borderColor:[inkLight,red,amber,green], borderWidth:1}]
+  },
+  options:base
+});
+</script>
+</body>
+</html>
